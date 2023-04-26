@@ -1,0 +1,15 @@
+---
+galaxy_info:
+  author: Georgy Melnikov
+  description: Ansible role for provisioning wireguard server
+  min_ansible_version: 2.11.6
+  license: MIT
+  galaxy_tags:
+    - vpn
+    - wireguard
+    - selfhosted
+  platforms:
+    - name: CentOS
+      versions:
+        - 8
+

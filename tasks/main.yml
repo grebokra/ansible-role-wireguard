@@ -1,0 +1,94 @@
+---
+- block:
+    - name: setup repos (RHEL)
+      ansible.builtin.yum:
+        name: "{{ item }}"
+        state: latest
+      with_items: "{{ wg_repos_rhel }}"
+    - name: install wireguard (RHEL)
+      ansible.builtin.yum:
+        name: "{{ item }}"
+        state: latest
+      with_items: "{{ wg_packages_rhel }}"
+  when: ansible_os_family == "RedHat"
+  notify: "restart {{ wg_iface_name }}"
+
+- block:
+    - name: install wireguard (Debian)
+      ansible.builtin.apt:
+        update_cache: yes
+        name: "{{ wg_packages_debian }}"
+        state: latest
+  when: ansible_distribution is search("Debian")
+  notify: "restart {{ wg_iface_name }}"
+
+- name: enable forwarding
+  ansible.builtin.sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_set: yes
+    state: present
+    reload: yes
+
+- name: ensure wireguard directrory present
+  ansible.builtin.file:
+    path: /etc/wireguard
+    state: directory
+    mode: 0755
+    owner: root
+    group: root
+
+- name: check whether config already present
+  ansible.builtin.stat:
+    path: "/etc/wireguard/{{ wg_iface_name }}.conf"
+  register: wg_config_file
+
+- name: generate private key if config doesn't exist
+  when:
+    - not wg_config_file.stat.exists
+    - wg_private_key is not defined
+  block:
+    - name: generate wg private key
+      ansible.builtin.command: "wg genkey"
+      register: wg_private_key_generate
+      changed_when: false
+
+    - name: set private key fact
+      ansible.builtin.set_fact:
+        wg_private_key: "{{ wg_private_key_generate.stdout }}"
+
+- name: learn private key if config exists
+  when:
+    - wg_config_file.stat.exists
+    - wg_private_key is not defined
+  block:
+    - name: read wg config file
+      ansible.builtin.slurp:
+        src: "/etc/wireguard/{{ wg_iface_name }}.conf"
+      register: wg_config
+
+    - name: set private key fact
+      ansible.builtin.set_fact:
+        wg_private_key: "{{ wg_config['content'] | b64decode | regex_findall('PrivateKey = (.*)') | first }}"
+
+- name: learn public key
+  ansible.builtin.command: "wg pubkey"
+  args:
+    stdin: "{{ wg_private_key }}"
+  register: wg_public_key_generate
+  changed_when: false
+  check_mode: false
+
+- name: set public key fact
+  ansible.builtin.set_fact:
+    wg_public_key: "{{ wg_public_key_generate.stdout }}"
+
+- name: place wg config
+  template:
+    src: wg.conf.j2
+    dest: "/etc/wireguard/{{ wg_iface_name }}.conf"
+    mode: 0600
+    owner: root
+    group: root
+  notify: "restart {{ wg_iface_name }}"
+

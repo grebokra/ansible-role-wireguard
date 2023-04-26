@@ -1,0 +1,16 @@
+[Interface]
+Address = {{ wg_iface_ip }}
+ListenPort = {{ wg_listen_port }}
+PrivateKey = {{ wg_private_key }}
+# PublicKey = {{ wg_public_key }}
+PostUp = iptables -A FORWARD -i {{ wg_outside_iface }} -o {{ wg_iface_name }} -j ACCEPT; iptables -A FORWARD -i {{ wg_iface_name }} -j ACCEPT; iptables -t nat -A POSTROUTING -o {{ wg_outside_iface }} -j MASQUERADE
+PostDown = iptables -D FORWARD -i {{ wg_outside_iface }} -o {{ wg_iface_name }} -j ACCEPT; iptables -D FORWARD -i {{ wg_iface_name }} -j ACCEPT; iptables -t nat -D POSTROUTING -o {{ wg_outside_iface }} -j MASQUERADE
+
+{% for user in wg_users %}
+# {{ user.name }}
+[Peer]
+PublicKey = {{ user.pubkey }}
+PresharedKey = {{ user.preshared_key }}
+AllowedIPs = {{ user.vpn_ip }}/32
+
+{% endfor %}

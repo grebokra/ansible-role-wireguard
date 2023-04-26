@@ -1,0 +1,16 @@
+---
+wg_iface_name: wg0
+wg_iface_ip: 10.66.54.1/24
+wg_listen_port: 54054
+wg_outside_iface: eth0
+wg_packages_debian:
+  - wireguard-tools
+  - iptables
+wg_packages_rhel:
+  - wireguard-tools
+  - kmod-wireguard
+  - iptables
+wg_repos_rhel:
+  - epel-release
+  - elrepo-release
+

@@ -1,0 +1,7 @@
+---
+- name: "restart {{ wg_iface_name }}"
+  service:
+    name: "wg-quick@{{ wg_iface_name }}"
+    state: restarted
+    enabled: yes
+
